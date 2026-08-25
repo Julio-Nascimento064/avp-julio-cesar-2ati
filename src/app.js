@@ -1,8 +1,25 @@
 import express from "express";
+import bcrypt from "bcrypt";
 
 const app = express();
 
 app.use(express.json());
+
+const usuarios = [];
+const tokenAutenticado = "token-autenticado-ghibli-123";
+
+function autorizar(req, res, next) {
+  const authorization = req.headers.authorization;
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : authorization;
+
+  if (token !== tokenAutenticado) {
+    return res.status(401).json({ mensagem: "Token ausente ou inválido" });
+  }
+
+  next();
+}
 
 const filmes = [
   {
@@ -28,6 +45,63 @@ const filmes = [
   }
 ];
 
+app.post("/usuarios", async (req, res) => {
+  const { nome, email, senha } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ mensagem: "Nome, e-mail e senha são obrigatórios" });
+  }
+
+  const usuarioExistente = usuarios.find((usuario) => usuario.email === email);
+
+  if (usuarioExistente) {
+    return res.status(400).json({ mensagem: "E-mail já cadastrado" });
+  }
+
+  const senhaCriptografada = await bcrypt.hash(senha, 10);
+  const novoUsuario = {
+    id: usuarios.length ? Math.max(...usuarios.map((usuario) => usuario.id)) + 1 : 1,
+    nome,
+    email,
+    senha: senhaCriptografada
+  };
+
+  usuarios.push(novoUsuario);
+
+  res.status(201).json({
+    mensagem: "Usuário cadastrado com sucesso",
+    usuario: {
+      id: novoUsuario.id,
+      nome: novoUsuario.nome,
+      email: novoUsuario.email
+    }
+  });
+});
+
+app.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+
+  if (!email || !senha) {
+    return res.status(400).json({ mensagem: "E-mail e senha são obrigatórios" });
+  }
+
+  const usuario = usuarios.find((usuario) => usuario.email === email);
+
+  if (!usuario || !(await bcrypt.compare(senha, usuario.senha))) {
+    return res.status(401).json({ mensagem: "E-mail ou senha inválidos" });
+  }
+
+  res.json({
+    mensagem: "Login realizado com sucesso",
+    token: tokenAutenticado,
+    usuario: {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email
+    }
+  });
+});
+
 app.get("/filmes", (req, res) => {
   res.json(filmes);
 });
@@ -43,7 +117,7 @@ app.get("/filmes/:id", (req, res) => {
   res.json(filme);
 });
 
-app.post("/filmes", (req, res) => {
+app.post("/filmes", autorizar, (req, res) => {
   const { titulo, diretor, anoLancamento, personagemPrincipal } = req.body;
 
   if (!titulo || !diretor || !anoLancamento || !personagemPrincipal) {
@@ -62,7 +136,7 @@ app.post("/filmes", (req, res) => {
   res.status(201).json(novoFilme);
 });
 
-app.put("/filmes/:id", (req, res) => {
+app.put("/filmes/:id", autorizar, (req, res) => {
   const id = Number(req.params.id);
   const indice = filmes.findIndex((filme) => filme.id === id);
 
@@ -87,7 +161,7 @@ app.put("/filmes/:id", (req, res) => {
   res.json(filmes[indice]);
 });
 
-app.delete("/filmes/:id", (req, res) => {
+app.delete("/filmes/:id", autorizar, (req, res) => {
   const id = Number(req.params.id);
   const indice = filmes.findIndex((filme) => filme.id === id);
 
