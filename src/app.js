@@ -1,7 +1,11 @@
+import { createRequire } from "module";
 import express from "express";
 import bcrypt from "bcrypt";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+
+const require = createRequire(import.meta.url);
+require('dotenv').config();
 
 const app = express();
 
@@ -22,7 +26,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(express.json());
 
 const usuarios = [];
-const tokenAutenticado = "token-autenticado-ghibli-123";
 
 function autorizar(req, res, next) {
   const authorization = req.headers.authorization;
@@ -30,7 +33,7 @@ function autorizar(req, res, next) {
     ? authorization.slice(7)
     : authorization;
 
-  if (token !== tokenAutenticado) {
+  if (token !== process.env.TOKEN) {
     return res.status(401).json({ mensagem: "Token ausente ou inválido" });
   }
 
@@ -164,7 +167,7 @@ app.post("/login", async (req, res) => {
 
   res.json({
     mensagem: "Login realizado com sucesso",
-    token: tokenAutenticado,
+    token: process.env.TOKEN,
     usuario: {
       id: usuario.id,
       nome: usuario.nome,
