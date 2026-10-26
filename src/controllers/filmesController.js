@@ -1,8 +1,8 @@
 import filmes from "../data/filmes.js";
+import * as filmesModel from "../models/filmesModel.js";
 
-export function obterFilmePorId(req, res) {
-  const id = Number(req.params.id);
-  const filme = filmes.find((filme) => filme.id === id);
+export async function obterFilmePorId(req, res) {
+  const filmes = await filmesModel.listar();
 
   if (!filme) {
     return res.status(404).json({ mensagem: "Filme não encontrado" });
@@ -11,11 +11,11 @@ export function obterFilmePorId(req, res) {
   res.json(filme);
 }
 
-export function obterTodosFilmes(req, res) {
-  res.json(filmes);
+export async function obterTodosFilmes(req, res) {
+  res.json(await filmesModel.listar());
 }
 
-export function adicionarFilme(req, res){
+export async function adicionarFilme(req, res){
   const { titulo, diretor, anoLancamento, personagemPrincipal } = req.body;
 
   if (!titulo || !diretor || !anoLancamento || !personagemPrincipal) {
@@ -34,11 +34,11 @@ export function adicionarFilme(req, res){
   res.status(201).json(novoFilme);
 }
 
-export function atualizarFilme (req, res)  {
+export async function atualizarFilme (req, res)  {
   const id = Number(req.params.id);
-  const indice = filmes.findIndex((filme) => filme.id === id);
+  const filme = await filmesModel.obterFilmePorId(id);
 
-  if (indice === -1) {
+  if (!filme) {
     return res.status(404).json({ mensagem: "Filme não encontrado" });
   }
 
